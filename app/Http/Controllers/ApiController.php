@@ -8212,9 +8212,9 @@ public function update_event($event_id,$strategy='',$pattern=''){
 
                     // }
 
-         if($date <= $end_date){
+         //if($date <= $end_date){
             DB::table('events')->insert($insertArr);
-        }
+       // }
 
         ++$i;
     }
@@ -9150,6 +9150,106 @@ public function reminder_notification(Request $request){
             'message' => 'Successfully',
             'daily_goal_notification_list' => $notifications,
         ],200);
+    }
+    
+    
+    
+    public function tracking_chart(Request $request){
+        $validator =  Validator::make($request->all(), [
+            'token' => 'required',
+            'status'=>'',
+            'sort_by'=>'',
+            'subject'=>'',
+
+        ]);
+
+        $user = null;
+        if ($validator->fails()) {
+
+            return response()->json([
+                'result' => 'failure',
+                'message' => json_encode($validator->errors()),
+
+            ],400);
+        }
+
+        $user = JWTAuth::parseToken()->authenticate();
+        $tracking_chart = [];
+        $details = [];
+        if (empty($user)){
+            return response()->json([
+                'result' => 'failure',
+                'message' => '',
+            ],401);
+        }
+//echo $user->id;
+        $student_events = DB::table('student_events')->select('id','sub_name','user_id','chapter_name','pattern','start_date','end_date')->where('user_id',$user->id);
+        if($request->subject !=''){
+            $student_events->where('sub_name', 'like', '%' . $request->subject . '%');
+        }
+
+        if(!empty($request->sort_by) && $request->sort_by == 'date'){
+            $student_events->orderBy('start_date');
+        }
+
+        if(!empty($request->sort_by) && $request->sort_by == 'subject'){
+            $student_events->orderBy('sub_name');
+        }
+
+        $student_events = $student_events->get();
+        if(!empty($student_events)){
+            foreach ($student_events as $stud_ev){
+                $status = '';
+                $dates = [];
+                    $events = DB::table('events')->where('event_id',$stud_ev->id);
+
+                    $events = $events->get();
+
+                    if(!empty($events)){
+                        foreach ($events as $event){
+                            $dates[] =$event->date;
+                        }
+
+                        $dates = implode(",",$dates);
+                        $details['dates'] = $dates;
+                    }
+
+
+                $details['start_date'] = $stud_ev->start_date;
+                $details['end_date'] = $stud_ev->end_date;
+
+
+
+                if($stud_ev->start_date > date('Y-m-d')){
+                    $status = 'Upcoming';
+                }
+                if($stud_ev->end_date > date('Y-m-d') && $stud_ev->end_date < date('Y-m-d')){
+                    $status = 'Ongoing';
+                }
+
+                $stud_ev->status = $status;
+
+
+
+                $stud_ev->details = $details;
+
+                $tracking_chart[] =  $stud_ev;
+
+            }
+        }
+
+
+
+
+
+
+        return response()->json([
+            'result' => 'success',
+            'message' => 'Successfully',
+            'tracking_chart' => $tracking_chart,
+        ],200);
+
+
     }
 
 }

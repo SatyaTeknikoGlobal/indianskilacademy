@@ -237,7 +237,7 @@ Route::get('active_users', 'ApiController@activeUsers');
         Route::match(['get','post'],'reminder_notification', 'ApiController@reminder_notification');
         Route::match(['get','post'],'daily_goal_notification', 'ApiController@daily_goal_notification');
 
-
+        Route::match(['get','post'],'tracking_chart', 'ApiController@tracking_chart');
 
 
 
