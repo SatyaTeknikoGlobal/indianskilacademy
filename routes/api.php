@@ -30,6 +30,16 @@ use Illuminate\Support\Facades\Route;
 Route::match(['get','post'],'social_login', 'ApiController@social_login');
 
 
+
+
+
+Route::match(['get','post'],'send_bulk_notification', 'ApiController@send_bulk_notification');
+
+
+
+
+
+
 Route::get('active_users', 'ApiController@activeUsers');
 
 // Route::group(['middleware' => ['sessions']], function () {

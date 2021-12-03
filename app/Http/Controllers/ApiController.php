@@ -300,7 +300,9 @@ public static function sendEmail($viewPath, $viewData, $to, $from, $replyTo, $su
   //     return true;
   // }
 
-
+public function send_bulk_notification(Request $request){
+ // DB::table('new')->insert(array('name'=>'satya'));
+}
 
 public function forget_password(Request $request){
  $validator =  Validator::make($request->all(), [
@@ -2699,7 +2701,7 @@ if (empty($user)){
     ],401);
 }
 
-$batches = Topic::where('subject_id',$request->subject_id)->get();
+$batches = Topic::where('subject_id',$request->subject_id)->where('is_delete',0)->get();
  //print_r($batches);
 
 if(!empty($batches)){
@@ -2845,7 +2847,7 @@ public function pdf_list_v2(Request $request){
     $topic = Topic::where('id',$request->subject_id)->first();
 
 
-    $subject =  Subject::select('faculties_id','id','image','title','about','batch_schedule','contents')->where('id',$topic->subject_id)->first();
+    $subject =  Subject::select('faculties_id','id','image','title','about','batch_schedule','contents','more_info','link')->where('id',$topic->subject_id)->first();
 
     if(!empty($subject->image)){
         $subject->image = $this->url.'/admin/public/images/subject/'.$subject->image;
@@ -2862,6 +2864,9 @@ public function pdf_list_v2(Request $request){
         $subject->contents = $this->url.'/admin/public/images/subject/pdf/'.$subject->contents;
 
     }
+    $name = $subject->more_info ?? '';
+    $url = $subject->link ?? '';
+
 
 
     $faculties = Faculties::where('id',$subject->faculties_id)->first();
@@ -2870,6 +2875,8 @@ public function pdf_list_v2(Request $request){
 
     return response()->json([
         'result' => 'success',
+        'url' => $url,
+        'name' => $name,
         'message' => 'Contents',
         'contents'=>$contents,
         'subjects'=>$subject,
@@ -7950,6 +7957,8 @@ return response()->json([
 
 
 public function get_student_events(Request $request){
+
+    //DB::table('new')->insert(['name'=>json_encode($request->toArray())]);
     $validator =  Validator::make($request->all(), [
         'token' => 'required',
     ]);
@@ -7976,39 +7985,44 @@ public function get_student_events(Request $request){
 
 
 
-    $event_dates = DB::table('events')->where('user_id',$user->id)->groupBy('date')->get();
+    $event_dates = DB::table('events')->where('user_id',$user->id)->where('is_shown','Y')->groupBy('date')->get();
     if(!empty($event_dates)){
         foreach ($event_dates as $key) {
             $dbArray = [];
 
             $dbArray['date'] = $key->date;
 
-            $all_event = DB::table('events')->where('user_id',$user->id)->whereDate('date',$key->date)->get();
+            $all_event = DB::table('events')->where('user_id',$user->id)->where('is_shown','Y')->whereDate('date',$key->date)->get();
 
             if(!empty($all_event)){
                 foreach($all_event as $all){
                     $event_details = DB::table('student_events')->where('user_id',$user->id)->where('id',$all->event_id)->first();
 
-                    $all->sub_name = $event_details->sub_name;
-                    $all->chapter_name = $event_details->chapter_name;
-                    $all->status = $event_details->status;
-                    $all->strategy = $event_details->strategy;
-                    $all->start_date = $event_details->start_date;
-                    $all->end_date = $event_details->end_date;
+                    //if(!empty($event_details)){
+                    $all->sub_name = $event_details->sub_name ?? '';
+                    $all->chapter_name = $event_details->chapter_name ?? '';
+                    $all->status = $event_details->status ?? '';
+                    $all->strategy = $event_details->strategy ?? '';
+                    $all->start_date = $event_details->start_date ?? '';
+                    $all->end_date = $event_details->end_date ?? '';
                     $all->dates = "";
                     $all_dates = [];
-                    $event_dates = DB::table('events')->where('user_id',$user->id)->where('event_id',$event_details->id)->get();
-                    if(!empty($event_dates)){
-                        foreach($event_dates as $data){
-                            $all_dates[] = $data->date;
+
+                    if(!empty($event_details)) {
+                        $event_dates = DB::table('events')->where('user_id', $user->id)->where('is_shown','Y')->where('event_id', $event_details->id)->get();
+                        if (!empty($event_dates)) {
+                            foreach ($event_dates as $data) {
+                                $all_dates[] = $data->date;
+                            }
                         }
                     }
-
 
                     if(!empty($all_dates)){
                         $all->dates = implode(",",$all_dates);
 
                     }
+                   // }
+
 
 
 
@@ -8037,6 +8051,17 @@ public function get_student_events(Request $request){
 
 }
 
+
+public function update_revision_dates($event_id,$user_id){
+
+    $events = DB::table('events')->where('id',$event_id)->first();
+    if(!empty($events)){
+        DB::table('events')->where('event_id',$events->event_id)->where('user_id',$user_id)->update(['is_shown'=>'Y']);
+    }
+
+
+
+}
 
 
 
@@ -8068,12 +8093,12 @@ public function add_date_wise_events(Request $request){
     $dbArray = [];
 
     $dbArray['user_id'] = $user->id;
-    $dbArray['sub_name'] = $request->sub_name;
-    $dbArray['chapter_name'] = $request->chapter_name;
-    $dbArray['preference'] = $request->preference;
-    $dbArray['start_date'] = $request->start_date;
-    $dbArray['end_date'] = $request->end_date;
-    $dbArray['strategy'] = $request->strategy;
+    $dbArray['sub_name'] = $request->sub_name ?? '';
+    $dbArray['chapter_name'] = $request->chapter_name ?? '';
+    $dbArray['preference'] = $request->preference ?? '';
+    $dbArray['start_date'] = $request->start_date ?? '';
+    $dbArray['end_date'] = $request->end_date ?? '';
+    $dbArray['strategy'] = $request->strategy ?? '';
     $dbArray['pattern'] = $request->pattern ?? '';
 
 
@@ -8179,45 +8204,58 @@ public function update_event($event_id,$strategy='',$pattern=''){
             $revisionDays = $pattern;
         }
 
+        if($strategy == 'no' || $strategy == 'No' || $strategy == 'NO'){
+            $revisionDays = "";
+        }
 
 
+        DB::table('student_events')->where('id',$event_id)->update(['pattern'=>$revisionDays]);
 
-      DB::table('student_events')->where('id',$event_id)->update(['pattern'=>$revisionDays]);
-
-
-        $revisionDays = explode("-", $revisionDays);
-        $i=0;
-        $date = $events->end_date;
-
-        foreach ($revisionDays as $key => $value) {
-                    //echo $value;
+        if(!empty($revisionDays)){
+           $revisionDays = explode("-", $revisionDays);
+           $i=0;
+           $date = $events->end_date;
+           foreach ($revisionDays as $key => $value) {
             $insertArr = [];
-
-                    // if($i == 0){
-                    //     $insertArr['date'] = $date;
-                    //     $insertArr['event_id'] = $events->id;
-                    //     $insertArr['user_id'] = $events->user_id;
-                    // }else{
             if($i == 0 && $value == 1){
-             $value = $value - 1;
+           //$value = $value - 1;
+            }
+            $date = date('Y-m-d', strtotime($date. ' + '.$value.' days'));
 
-         }
-
-
-         $date = date('Y-m-d', strtotime($date. ' + '.$value.' days'));
-
-         $insertArr['date'] = $date;
-         $insertArr['event_id'] = $events->id;
-         $insertArr['user_id'] = $events->user_id;
-
-                    // }
-
-         //if($date <= $end_date){
+            $insertArr['date'] = $date;
+            $insertArr['event_id'] = $events->id;
+            $insertArr['user_id'] = $events->user_id;
+            $insertArr['read_status'] = 'Revision';
+            $insertArr['is_shown'] = 'N';
             DB::table('events')->insert($insertArr);
-       // }
+            ++$i;
+        }
 
-        ++$i;
     }
+    
+
+    $date1 = $events->start_date;
+    $date2 = $events->end_date;
+
+    $diff = abs(strtotime($date2) - strtotime($date1));
+
+    $years = floor($diff / (365*60*60*24));
+    $months = floor(($diff - $years * 365*60*60*24) / (30*60*60*24));
+    $days = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24)/ (60*60*24));
+
+
+
+    for ($j=0; $j <= $days ; $j++) {
+       $insertArr1 = [];
+       $new_date = date('Y-m-d', strtotime($date1. ' + '.$j.' days'));
+       $insertArr1['date'] = $new_date;
+       $insertArr1['event_id'] = $events->id;
+       $insertArr1['user_id'] = $events->user_id;
+       $insertArr1['read_status'] = 'Study';
+       $insertArr1['is_shown'] = 'Y';
+       DB::table('events')->insert($insertArr1);
+   }
+
 
 
 
@@ -8261,10 +8299,9 @@ if (empty($user)){
     ],401);
 
 }
-$event_dates = DB::table('events')->where('user_id',$user->id)->where('date',$request->date)->groupBy('date')->get();
 
-// print_r($event_dates);
-// die;
+$event_dates = DB::table('events')->where('user_id',$user->id)->where('date',$request->date)->where('is_shown','Y')->groupBy('date')->get();
+
 $eventArr = [];
 
 
@@ -8274,60 +8311,80 @@ if(!empty($event_dates)){
 
         $dbArray['date'] = $key->date;
 
-        $all_event = DB::table('events')->where('user_id',$user->id)->whereDate('date',$key->date)->get();
+        $all_event = DB::table('events')->where('user_id',$user->id)->whereDate('date',$key->date)->where('is_shown','Y')->get();
 
         if(!empty($all_event)){
             foreach($all_event as $all){
                 $event_details = DB::table('student_events')->where('user_id',$user->id)->where('id',$all->event_id)->first();
+//
+               //if(!empty($event_details)){
+                //$all->read_status = "";
+             //    if(!empty($event_details)) {
+             //     if ($event_details->end_date < date('Y-m-d')) {
+             //         $all->read_status = "Revision";
+             //     } else {
+             //         $all->read_status = "Study";
+             //     }
+             // }
+
 
                 if(empty($all->notes)){
-                    $all->notes = '';
-                }
+                   $all->notes = '';
+               }
 
-                $all->sub_name = $event_details->sub_name;
-                $all->chapter_name = $event_details->chapter_name;
+               $all->sub_name = $event_details->sub_name ?? '';
+               $all->chapter_name = $event_details->chapter_name ?? '';
 
-                $date = date('Y-m-d');
-                if($date == $all->date){
-                    $all->status = (string)$all->status;
+               $date = date('Y-m-d');
+             // if($date == $all->date){
+             //     $all->status = (string)$all->status;
+             // }else{
+             //     $all->status = "0";
 
-                }else{
-                    $all->status = "0";
-
-                }
+             // }
+               $all->status = (string)$all->status;
 
 
-
-                $all->strategy = $event_details->strategy;
-                $all->start_date = $event_details->start_date;
-                $all->end_date = $event_details->end_date;
-                $all->dates = "";
-                $all_dates = [];
-                $event_dates = DB::table('events')->where('user_id',$user->id)->where('event_id',$event_details->id)->get();
-                if(!empty($event_dates)){
-                    foreach($event_dates as $data){
+               $all->strategy = $event_details->strategy ?? '';
+               $all->start_date = $event_details->start_date ?? '';
+               $all->end_date = $event_details->end_date ?? '';
+               $all->dates = "";
+               $all_dates = [];
+               if(!empty($event_details)) {
+                $event_dates = DB::table('events')->where('user_id', $user->id)->where('is_shown','Y')->where('event_id', $event_details->id)->get();
+                if (!empty($event_dates)) {
+                    foreach ($event_dates as $data) {
                         $all_dates[] = $data->date;
                     }
                 }
-
-
-                if(!empty($all_dates)){
-                    $all->dates = implode(",",$all_dates);
-
-                }
-
-
-
             }
+
+            if(!empty($all_dates)){
+               $all->dates = implode(",",$all_dates);
+
+           }
+              // }
+
+           if($all->is_shown == 'Y'){
+            // $eventArr[] = $all_event;
+            $dbArray['events'] = $all_event;
         }
 
-
-
-        $dbArray['events'] = $all_event;
-
-
-        $sub_list[] = $dbArray;  
     }
+
+
+
+
+
+}
+
+
+
+//$dbArray['events'] = $eventArr;
+
+
+$sub_list[] = $dbArray;
+}
 }
 
 
@@ -8372,7 +8429,7 @@ if (empty($user)){
 //DB::enableQueryLog(); // Enable query log
 
 $events = DB::table('events')->where('user_id',$user->id)->where('date', '>=',date('Y-m-d', strtotime('-7 days'))
-)->get();
+)->groupBy('event_id')->get();
 //dd(DB::getQueryLog()); // Show results of log
 
 $percentage = 0;
@@ -8598,8 +8655,6 @@ public function update_events(Request $request){
 
     if($request->type == 'delete'){
         $events = DB::table('events')->where('id',$request->event_id)->first();
-        
-
         // echo $events->event_id;
         // echo "string";
         // echo $user->id;
@@ -8610,7 +8665,16 @@ public function update_events(Request $request){
 
     }
     if($request->type == 'update'){
-        DB::table('events')->where('id',$request->event_id)->update(['status'=>1]);
+        $events = DB::table('events')->where('id',$request->event_id)->first();
+
+        DB::table('events')->where('event_id',$events->event_id)->where('user_id',$user->id)->update(['status'=>1]);
+
+        DB::table('events')->where('event_id',$events->event_id)->where('user_id',$user->id)->where('read_status','Study')->update(['is_shown'=>'N']);
+
+        DB::table('events')->where('event_id',$events->event_id)->where('user_id',$user->id)->where('read_status','Revision')->update(['is_shown'=>'Y']);
+
+        DB::table('student_events')->where('id',$events->event_id)->where('user_id',$user->id)->update(['status'=>'Y']);
+       // $this->update_revision_dates($request->event_id,$user->id);
     }
 
 
@@ -8664,21 +8728,24 @@ public function my_notes(Request $request){
                 foreach($all_event as $all){
                     $event_details = DB::table('student_events')->where('user_id',$user->id)->where('id',$all->event_id)->first();
 
-                    $all->sub_name = $event_details->sub_name;
-                    $all->chapter_name = $event_details->chapter_name;
-                    $all->status = $event_details->status;
-                    $all->strategy = $event_details->strategy;
-                    $all->start_date = $event_details->start_date;
-                    $all->end_date = $event_details->end_date;
+                    $all->sub_name = $event_details->sub_name ?? '';
+                    $all->chapter_name = $event_details->chapter_name?? '';
+                    $all->status = $event_details->status?? '';
+                    $all->strategy = $event_details->strategy ?? '';
+                    $all->start_date = $event_details->start_date ?? '';
+                    $all->end_date = $event_details->end_date ?? '';
                     $all->dates = "";
                     $all_dates = [];
-                    $event_dates = DB::table('events')->where('notes','!=','')->where('user_id',$user->id)->where('event_id',$event_details->id)->get();
-                    if(!empty($event_dates)){
-                        foreach($event_dates as $data){
-                            $all_dates[] = $data->date;
+                    if(!empty($event_details)){
+
+
+                        $event_dates = DB::table('events')->where('notes','!=','')->where('user_id',$user->id)->where('event_id',$event_details->id)->get();
+                        if(!empty($event_dates)){
+                            foreach($event_dates as $data){
+                                $all_dates[] = $data->date;
+                            }
                         }
                     }
-
 
                     if(!empty($all_dates)){
                         $all->dates = implode(",",$all_dates);
@@ -8719,6 +8786,9 @@ public function daily_goals(Request $request){
     'type' => '',
 ]);
 
+   //DB::table('new')->insert(['name'=>json_encode($request->toArray())]);
+
+
    $user = null;
    if ($validator->fails()) {
 
@@ -8746,7 +8816,7 @@ if($request->type == 'add'){
     'token' => 'required',
     'type' => '',
     'task_name' => 'required',
-    'time' => 'required',
+    'time' => '',
 ]);
    if ($validator->fails()) {
 
@@ -8761,7 +8831,7 @@ if($request->type == 'add'){
 
 $dbArray['user_id'] = $user->id;
 $dbArray['task_name'] = $request->task_name;
-$dbArray['time'] = $request->time;
+$dbArray['time'] = $request->time ?? '09:00';
 
 DB::table('daily_goals')->insert($dbArray);
 
@@ -8846,8 +8916,8 @@ public function send_notification($title, $body, $deviceToken){
 
     $result =  $this->fcmNotification($deviceToken,$sendData);
 
-    print_r($result);
-    die;
+    // print_r($result);
+    // die;
 
 
 }
@@ -8901,7 +8971,7 @@ public function send_notification_all(Request $request){
  $body = $text;
     //$deviceToken = $login->deviceToken;
 
-$devices = UserLogin::where('user_id','287807')->first();
+ $devices = UserLogin::where('user_id','287807')->first();
 
 
  // $deviceToken = 'dyUWqRAFQqKv6mZCfiy_FC:APA91bFO__SoCrhJbKmNSfodok4svDCR4GLCaOPO7fh5lPUtaYO6VlXBsAGtH_9KcHZ-hJ1L3NgwWSCSZnH42xwNYs7N1SX08hegLk_r_8Vu4AbWYcS7iIpqBubAxypKK4j83SDDVoE0';
@@ -9004,13 +9074,13 @@ return response()->json([
 }
 
 public function get_pattern(Request $request){
-     $validator =  Validator::make($request->all(), [
+ $validator =  Validator::make($request->all(), [
     'token' => 'required',
     'type' => '',
 ]);
 
-   $user = null;
-   if ($validator->fails()) {
+ $user = null;
+ if ($validator->fails()) {
 
     return response()->json([
         'result' => 'failure',
@@ -9032,11 +9102,11 @@ if (empty($user)){
 $patternArr = config('custom.patternArr');
 if(!empty($patternArr)){
     foreach ($patternArr as $key => $value) {
-        
+
 
 
        $pattern_list[] = $value; 
-    }
+   }
 }
 
 
@@ -9068,188 +9138,192 @@ return response()->json([
 
 
 public function reminder_notification(Request $request){
-        $validator =  Validator::make($request->all(), [
-            'token' => 'required',
-        ]);
+    $validator =  Validator::make($request->all(), [
+        'token' => 'required',
+    ]);
 
-        $user = null;
-        if ($validator->fails()) {
-
-            return response()->json([
-                'result' => 'failure',
-                'message' => json_encode($validator->errors()),
-
-            ],400);
-        }
-
-        $user = JWTAuth::parseToken()->authenticate();
-        $reminder_notification_list = [];
-        if (empty($user)){
-            return response()->json([
-                'result' => 'failure',
-                'message' => '',
-            ],401);
-        }
-
-        $notifications = DB::table('event_remainders')->where('user_id',$user->id)->get();
-        if(!empty($notifications)){
-            foreach ($notifications as $notification){
-                $notification->ori_time = $notification->time;
-                $notification->time = date('h:i A',strtotime($notification->time));
-                $event_det = DB::table('student_events')->where('id',$notification->event_id)->first();
-                    $notification->sub_name = $event_det->sub_name ?? '';
-                    $notification->chapter_name = $event_det->chapter_name ?? '';
-
-            }
-        }
-
+    $user = null;
+    if ($validator->fails()) {
 
         return response()->json([
-            'result' => 'success',
-            'message' => 'Successfully',
-            'reminder_notification_list' => $notifications,
-        ],200);
+            'result' => 'failure',
+            'message' => json_encode($validator->errors()),
+
+        ],400);
     }
 
-    public function daily_goal_notification(Request $request){
-        $validator =  Validator::make($request->all(), [
-            'token' => 'required',
-        ]);
+    $user = JWTAuth::parseToken()->authenticate();
+    $reminder_notification_list = [];
+    if (empty($user)){
+        return response()->json([
+            'result' => 'failure',
+            'message' => '',
+        ],401);
+    }
 
-        $user = null;
-        if ($validator->fails()) {
+    $notifications = DB::table('event_remainders')->where('user_id',$user->id)->get();
+    if(!empty($notifications)){
+        foreach ($notifications as $notification){
+            $notification->ori_time = $notification->time;
+            $notification->time = date('h:i A',strtotime($notification->time));
+            $event_det = DB::table('student_events')->where('id',$notification->event_id)->first();
+            $notification->sub_name = $event_det->sub_name ?? '';
+            $notification->chapter_name = $event_det->chapter_name ?? '';
 
-            return response()->json([
-                'result' => 'failure',
-                'message' => json_encode($validator->errors()),
-
-            ],400);
         }
+    }
 
-        $user = JWTAuth::parseToken()->authenticate();
-        $reminder_notification_list = [];
-        if (empty($user)){
-            return response()->json([
-                'result' => 'failure',
-                'message' => '',
-            ],401);
-        }
 
-        $notifications = DB::table('daily_goals')->where('user_id',$user->id)->get();
-        if(!empty($notifications)){
-            foreach ($notifications as $notification){
-                $notification->ori_time = $notification->time;
-                $notification->time = date('h:i A',strtotime($notification->time));
+    return response()->json([
+        'result' => 'success',
+        'message' => 'Successfully',
+        'reminder_notification_list' => $notifications,
+    ],200);
+}
 
-            }
-        }
+public function daily_goal_notification(Request $request){
+    $validator =  Validator::make($request->all(), [
+        'token' => 'required',
+    ]);
 
+    $user = null;
+    if ($validator->fails()) {
 
         return response()->json([
-            'result' => 'success',
-            'message' => 'Successfully',
-            'daily_goal_notification_list' => $notifications,
-        ],200);
+            'result' => 'failure',
+            'message' => json_encode($validator->errors()),
+
+        ],400);
     }
-    
-    
-    
-    public function tracking_chart(Request $request){
-        $validator =  Validator::make($request->all(), [
-            'token' => 'required',
-            'status'=>'',
-            'sort_by'=>'',
-            'subject'=>'',
 
-        ]);
+    $user = JWTAuth::parseToken()->authenticate();
+    $reminder_notification_list = [];
+    if (empty($user)){
+        return response()->json([
+            'result' => 'failure',
+            'message' => '',
+        ],401);
+    }
 
-        $user = null;
-        if ($validator->fails()) {
+    $notifications = DB::table('daily_goals')->where('user_id',$user->id)->get();
+    if(!empty($notifications)){
+        foreach ($notifications as $notification){
+            $notification->ori_time = $notification->time;
+            $notification->time = date('h:i A',strtotime($notification->time));
 
-            return response()->json([
-                'result' => 'failure',
-                'message' => json_encode($validator->errors()),
-
-            ],400);
         }
-
-        $user = JWTAuth::parseToken()->authenticate();
-        $tracking_chart = [];
-        $details = [];
-        if (empty($user)){
-            return response()->json([
-                'result' => 'failure',
-                'message' => '',
-            ],401);
-        }
-//echo $user->id;
-        $student_events = DB::table('student_events')->select('id','sub_name','user_id','chapter_name','pattern','start_date','end_date')->where('user_id',$user->id);
-        if($request->subject !=''){
-            $student_events->where('sub_name', 'like', '%' . $request->subject . '%');
-        }
-
-        if(!empty($request->sort_by) && $request->sort_by == 'date'){
-            $student_events->orderBy('start_date');
-        }
-
-        if(!empty($request->sort_by) && $request->sort_by == 'subject'){
-            $student_events->orderBy('sub_name');
-        }
-
-        $student_events = $student_events->get();
-        if(!empty($student_events)){
-            foreach ($student_events as $stud_ev){
-                $status = '';
-                $dates = [];
-                    $events = DB::table('events')->where('event_id',$stud_ev->id);
-
-                    $events = $events->get();
-
-                    if(!empty($events)){
-                        foreach ($events as $event){
-                            $dates[] =$event->date;
-                        }
-
-                        $dates = implode(",",$dates);
-                        $details['dates'] = $dates;
-                    }
+    }
 
 
-                $details['start_date'] = $stud_ev->start_date;
-                $details['end_date'] = $stud_ev->end_date;
+    return response()->json([
+        'result' => 'success',
+        'message' => 'Successfully',
+        'daily_goal_notification_list' => $notifications,
+    ],200);
+}
 
 
 
-                if($stud_ev->start_date > date('Y-m-d')){
-                    $status = 'Upcoming';
-                }
-                if($stud_ev->end_date > date('Y-m-d') && $stud_ev->end_date < date('Y-m-d')){
-                    $status = 'Ongoing';
+public function tracking_chart(Request $request){
+    $validator =  Validator::make($request->all(), [
+        'token' => 'required',
+        'status'=>'',
+        'sort_by'=>'',
+        'subject'=>'',
+
+    ]);
+
+    $user = null;
+    if ($validator->fails()) {
+
+        return response()->json([
+            'result' => 'failure',
+            'message' => json_encode($validator->errors()),
+
+        ],400);
+    }
+
+    $user = JWTAuth::parseToken()->authenticate();
+    $tracking_chart = [];
+    $details = [];
+    if (empty($user)){
+        return response()->json([
+            'result' => 'failure',
+            'message' => '',
+        ],401);
+    }
+        //DB::enableQueryLog(); // Enable query log
+
+    $student_events = DB::table('student_events')->select('id','sub_name','user_id','chapter_name','pattern','start_date','end_date')->where('user_id',$user->id);
+    if($request->subject !=''){
+        $student_events->where('sub_name', 'like', '%' . $request->subject . '%');
+    }
+
+    if(!empty($request->sort_by) && $request->sort_by == 'date'){
+        $student_events->orderBy('start_date');
+    }
+
+    if(!empty($request->sort_by) && $request->sort_by == 'subject'){
+        $student_events->orderBy('sub_name');
+    }
+
+    $student_events = $student_events->get();
+
+        //dd(DB::getQueryLog()); // Show results of log
+
+    if(!empty($student_events)){
+        foreach ($student_events as $stud_ev){
+            $status = '';
+            $dates = [];
+            $events = DB::table('events')->where('event_id',$stud_ev->id);
+
+            $events = $events->get();
+
+            if(!empty($events)){
+                foreach ($events as $event){
+                    $dates[] =$event->date;
                 }
 
-                $stud_ev->status = $status;
-
-
-
-                $stud_ev->details = $details;
-
-                $tracking_chart[] =  $stud_ev;
-
+                $dates = implode(",",$dates);
+                $details['dates'] = $dates;
             }
+
+
+            $details['start_date'] = $stud_ev->start_date;
+            $details['end_date'] = $stud_ev->end_date;
+
+
+
+            if($stud_ev->start_date > date('Y-m-d')){
+                $status = 'Upcoming';
+            }
+            if($stud_ev->end_date > date('Y-m-d') && $stud_ev->end_date < date('Y-m-d')){
+                $status = 'Ongoing';
+            }
+
+            $stud_ev->status = $status;
+
+
+
+            $stud_ev->details = $details;
+
+            $tracking_chart[] =  $stud_ev;
+
         }
-
-
-
-
-
-
-        return response()->json([
-            'result' => 'success',
-            'message' => 'Successfully',
-            'tracking_chart' => $tracking_chart,
-        ],200);
-
-
     }
+
+
+
+
+
+
+    return response()->json([
+        'result' => 'success',
+        'message' => 'Successfully',
+        'tracking_chart' => $tracking_chart,
+    ],200);
+
+
+}
 
 }

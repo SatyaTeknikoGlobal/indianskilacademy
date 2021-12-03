@@ -294,6 +294,30 @@ active
 
 
 
+              <div class="form-group row">
+
+            <label for="input-26" class="col-sm-2 col-form-label">More Info</label>
+
+            <div class="col-sm-10">
+
+            <input type="text" class="form-control form-control-rounded" value="{{$r->more_info}}" id="input-26" name="more_info" >
+
+            </div>
+
+          </div>
+
+
+              <div class="form-group row">
+
+            <label for="input-26" class="col-sm-2 col-form-label">Link</label>
+
+            <div class="col-sm-10">
+
+            <input type="text" class="form-control form-control-rounded" value="{{$r->link}}" id="input-26" name="link" >
+
+            </div>
+
+          </div>
 
 
 

@@ -52,7 +52,7 @@ class SubjectController extends Controller
      */
     public function store(Request $request)
     {
-       $request->validate([
+     $request->validate([
         'board_id' =>'required',
         'title' =>'required',
         'title_hindi' =>'',
@@ -61,7 +61,7 @@ class SubjectController extends Controller
         'faculties_id'=>'required',
         'status'=>'required',
     ]);
-       $imageName = time().'.'.request()->image->getClientOriginalExtension();
+     $imageName = time().'.'.request()->image->getClientOriginalExtension();
         request()->image->move(public_path('images/subject'), $imageName); //orginal 
 
         $about = '';
@@ -70,17 +70,17 @@ class SubjectController extends Controller
 
         $about = isset($subject->about) ? $subject->about :'';
         if(!empty($request->file('about'))){
-           $about =time().'about.'.request()->about->getClientOriginalExtension();
+         $about =time().'about.'.request()->about->getClientOriginalExtension();
                 request()->about->move(public_path('images/subject/pdf/'), $about); //orginal 
             }
             $contents = isset($subject->contents) ? $subject->contents :'';
             if(!empty($request->file('contents'))){
-               $contents = time().'contents.'.request()->contents->getClientOriginalExtension();
+             $contents = time().'contents.'.request()->contents->getClientOriginalExtension();
                 request()->contents->move(public_path('images/subject/pdf/'), $contents); //orginal 
             }
             $batch_schedule = isset($subject->batch_schedule) ? $subject->batch_schedule :'';
             if(!empty($request->file('batch_schedule'))){
-               $batch_schedule =time().'batch_schedule.'. request()->batch_schedule->getClientOriginalExtension();
+             $batch_schedule =time().'batch_schedule.'. request()->batch_schedule->getClientOriginalExtension();
                 request()->batch_schedule->move(public_path('images/subject/pdf/'), $batch_schedule); //orginal 
             }
 
@@ -112,6 +112,8 @@ class SubjectController extends Controller
                 'price'=>request('price'),
                 'mrp'=>request('mrp'),
                 'tag'=>request('tag'),
+                'more_info'=>request('more_info'),
+                'link'=>request('link'),
 
             ]);
             Chapter::create([
@@ -166,7 +168,7 @@ class SubjectController extends Controller
      */
     public function update(Request $request)
     {
-       $request->validate([
+     $request->validate([
         'board_id' =>'required',
         'title' =>'required',
         'description' =>'',
@@ -175,25 +177,25 @@ class SubjectController extends Controller
         'image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:8192',
         'id'=>'required',
     ]);
-       $update_id = auth()->user()->id;
-       $id = $request->input('id');
-       $image = $request->file('image');
+     $update_id = auth()->user()->id;
+     $id = $request->input('id');
+     $image = $request->file('image');
 
-       $subject = Subject::where('id',$id)->first();
+     $subject = Subject::where('id',$id)->first();
 
-       $about = isset($subject->about) ? $subject->about :'';
-       if(!empty($request->file('about'))){
-           $about =time().'about.'.request()->about->getClientOriginalExtension();
+     $about = isset($subject->about) ? $subject->about :'';
+     if(!empty($request->file('about'))){
+         $about =time().'about.'.request()->about->getClientOriginalExtension();
                 request()->about->move(public_path('images/subject/pdf/'), $about); //orginal 
             }
             $contents = isset($subject->contents) ? $subject->contents :'';
             if(!empty($request->file('contents'))){
-               $contents = time().'contents.'.request()->contents->getClientOriginalExtension();
+             $contents = time().'contents.'.request()->contents->getClientOriginalExtension();
                 request()->contents->move(public_path('images/subject/pdf/'), $contents); //orginal 
             }
             $batch_schedule = isset($subject->batch_schedule) ? $subject->batch_schedule :'';
             if(!empty($request->file('batch_schedule'))){
-               $batch_schedule =time().'batch_schedule.'. request()->batch_schedule->getClientOriginalExtension();
+             $batch_schedule =time().'batch_schedule.'. request()->batch_schedule->getClientOriginalExtension();
                 request()->batch_schedule->move(public_path('images/subject/pdf/'), $batch_schedule); //orginal 
             }
 
@@ -221,6 +223,8 @@ class SubjectController extends Controller
                     'price'=>request('price'),
                     'mrp'=>request('mrp'),
                     'tag'=>request('tag'),
+                    'more_info'=>request('more_info'),
+                    'link'=>request('link'),
 
                 );
 
@@ -229,7 +233,7 @@ class SubjectController extends Controller
                 ->with('success','Record Updated successfully.');
             }
             else{
-               $data = array(
+             $data = array(
                 'board_id'=>request('board_id'),
                 'title'=>request('title'),
                 'title_hindi'=>request('title_hindi'),
@@ -246,57 +250,59 @@ class SubjectController extends Controller
                 'price'=>request('price'),
                 'mrp'=>request('mrp'),
                 'tag'=>request('tag'),
+                'more_info'=>request('more_info'),
+                'link'=>request('link'),
                 
             );
 
-               Subject::where('id',$id)->update($data);
-               return redirect()->route('subject.index')
-               ->with('success','Record Updated successfully.');
-           }
-       }
+             Subject::where('id',$id)->update($data);
+             return redirect()->route('subject.index')
+             ->with('success','Record Updated successfully.');
+         }
+     }
 
     // Chapgter List
-       public function getSubject()
-       {
-         $id = $_POST['id'];
-         if (!empty($id)) {
-            $data=   Topic::where(['subject_id'=>$id])->select('id','name')->get();
-            ?>
-            <option readonly selected="" value="0">Select Batch</option>
-            <?php
-            foreach ($data as $row) {?>
-               <option value="<?=$row->id?>"><?=$row->name?></option>
-           <?php }
-       }
-   }
+     public function getSubject()
+     {
+       $id = $_POST['id'];
+       if (!empty($id)) {
+        $data=   Topic::where(['subject_id'=>$id])->select('id','name')->get();
+        ?>
+        <option readonly selected="" value="0">Select Batch</option>
+        <?php
+        foreach ($data as $row) {?>
+         <option value="<?=$row->id?>"><?=$row->name?></option>
+     <?php }
+ }
+}
 
     // Subject LIST
-   public function getSubjectList(Request $request)
-   {
-     $board_id = $request->input('board_id');
-     $subjectList ='<option readonly selected value="0">Select Courses</option>';
-     $questionList ='';
-     if (!empty($board_id)) {
-        $data=   Subject::where(['board_id'=>$board_id])->select('id','title')->get();
-        foreach ($data as $row) {
-         $subjectList.= '<option value="'.$row->id.'">'.$row->title.'</option>';
-     }
-     $data2 = Question::where(['boards'=>$board_id])->with('subjects')->get();
+public function getSubjectList(Request $request)
+{
+   $board_id = $request->input('board_id');
+   $subjectList ='<option readonly selected value="0">Select Courses</option>';
+   $questionList ='';
+   if (!empty($board_id)) {
+    $data=   Subject::where(['board_id'=>$board_id])->select('id','title')->get();
+    foreach ($data as $row) {
+       $subjectList.= '<option value="'.$row->id.'">'.$row->title.'</option>';
+   }
+   $data2 = Question::where(['boards'=>$board_id])->with('subjects')->get();
 
-     foreach ($data2 as $r) {
-        $questionList .= ' <tr>
-        <td>'.$r->id.'</td>
-        <td class="text-wrap">'.$r->e_question.'</td>
-        <td class="text-wrap">'.$r->marks.'</td>
-        <td class="text-wrap">'.$r->difficulty_level.'</td>
-        <td>
-        <button href="javascript:void(0);" type="submit" class="btn btn-danger btn-sm"><i class="fa fa-trash" aria-hidden="true"></i> Delete</button></td>
-        </td>
-        </tr>';
+   foreach ($data2 as $r) {
+    $questionList .= ' <tr>
+    <td>'.$r->id.'</td>
+    <td class="text-wrap">'.$r->e_question.'</td>
+    <td class="text-wrap">'.$r->marks.'</td>
+    <td class="text-wrap">'.$r->difficulty_level.'</td>
+    <td>
+    <button href="javascript:void(0);" type="submit" class="btn btn-danger btn-sm"><i class="fa fa-trash" aria-hidden="true"></i> Delete</button></td>
+    </td>
+    </tr>';
 
-    }
-    $arrayName = array('subjectList' => $subjectList,'questionList' =>$questionList);
-    echo json_encode($arrayName);exit();
+}
+$arrayName = array('subjectList' => $subjectList,'questionList' =>$questionList);
+echo json_encode($arrayName);exit();
 }
 
 }
@@ -304,14 +310,14 @@ class SubjectController extends Controller
     // Topic LIST
 public function getTopic(Request $request)
 {
- $chapter_id= $request->input('id');
- if (!empty($chapter_id)) {
+   $chapter_id= $request->input('id');
+   if (!empty($chapter_id)) {
     $data=   Topic::where(['chapter_id'=>$chapter_id])->select('id','name')->get(); 
     ?>
     <option readonly selected="" value="0">Select Batch</option>
     <?php  foreach ($data as $row) {?>
-       <option value="<?=$row->id?>"><?=$row->name?></option>
-   <?php }
+     <option value="<?=$row->id?>"><?=$row->name?></option>
+ <?php }
 }
 }
 

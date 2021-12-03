@@ -275,6 +275,35 @@ active
           </div>
 
 
+
+
+              <div class="form-group row">
+
+            <label for="input-26" class="col-sm-2 col-form-label">More Info</label>
+
+            <div class="col-sm-10">
+
+            <input type="text" class="form-control form-control-rounded" id="input-26" name="more_info" >
+
+            </div>
+
+          </div>
+
+
+              <div class="form-group row">
+
+            <label for="input-26" class="col-sm-2 col-form-label">Link</label>
+
+            <div class="col-sm-10">
+
+            <input type="text" class="form-control form-control-rounded" id="input-26" name="link" >
+
+            </div>
+
+          </div>
+
+
+
           <div class="form-group row">
 
               <label for="exampleInputEmail1" class="col-sm-2 col-form-label">Status *</label>
